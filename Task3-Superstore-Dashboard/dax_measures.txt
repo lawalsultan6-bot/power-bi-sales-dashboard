@@ -1,0 +1,85 @@
+=====================================================================
+TASK 3 - POWER BI DAX CODE  (copy and paste each block as a New Measure / New Table / New Column)
+Data file : superstore_powerbi_ready.csv   (table name in Power BI: superstore)
+=====================================================================
+
+----- 1. DATE TABLE  (Modeling > New Table) -------------------------
+Calendar =
+ADDCOLUMNS (
+    CALENDAR ( DATE ( 2011, 1, 1 ), DATE ( 2014, 12, 31 ) ),
+    "Year", YEAR ( [Date] ),
+    "Month No", MONTH ( [Date] ),
+    "Month", FORMAT ( [Date], "MMM" ),
+    "Quarter", "Q" & QUARTER ( [Date] ),
+    "Year-Month", FORMAT ( [Date], "YYYY-MM" )
+)
+-- Then: Model view > relate Calendar[Date] (one) to superstore[order_date] (many)
+-- Then: Table tools > Mark as date table > Date column
+-- Sort "Month" by "Month No" (Column tools > Sort by column)
+
+----- 2. CALCULATED COLUMNS  (on the superstore table) --------------
+Discount Band Sort =
+SWITCH (
+    TRUE (),
+    superstore[discount_band] = "No discount", 1,
+    superstore[discount_band] = "1-20%", 2,
+    superstore[discount_band] = "21-40%", 3,
+    4
+)
+-- Sort superstore[discount_band] by [Discount Band Sort]
+
+----- 3. CORE MEASURES ----------------------------------------------
+Total Sales = SUM ( superstore[sales] )
+
+Total Profit = SUM ( superstore[profit] )
+
+Profit Margin % = DIVIDE ( [Total Profit], [Total Sales] )
+
+Total Orders = DISTINCTCOUNT ( superstore[order_id] )
+
+Units Sold = SUM ( superstore[quantity] )
+
+Avg Order Value = DIVIDE ( [Total Sales], [Total Orders] )
+
+Avg Discount % = AVERAGE ( superstore[discount] )
+
+Total Shipping Cost = SUM ( superstore[shipping_cost] )
+
+Avg Days to Ship = AVERAGE ( superstore[days_to_ship] )
+
+Loss Lines = CALCULATE ( COUNTROWS ( superstore ), superstore[profit] < 0 )
+
+Loss Lines % = DIVIDE ( [Loss Lines], COUNTROWS ( superstore ) )
+
+Total Loss Amount =
+CALCULATE ( [Total Profit], superstore[profit] < 0 )
+
+Customers = DISTINCTCOUNT ( superstore[customer_id] )
+
+----- 4. TIME INTELLIGENCE ------------------------------------------
+Sales LY = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Calendar'[Date] ) )
+
+Sales YoY % = DIVIDE ( [Total Sales] - [Sales LY], [Sales LY] )
+
+Profit LY = CALCULATE ( [Total Profit], SAMEPERIODLASTYEAR ( 'Calendar'[Date] ) )
+
+Profit YoY % = DIVIDE ( [Total Profit] - [Profit LY], [Profit LY] )
+
+Sales YTD = TOTALYTD ( [Total Sales], 'Calendar'[Date] )
+
+----- 5. RANKING / INSIGHT MEASURES ---------------------------------
+Sub-Category Rank =
+RANKX ( ALL ( superstore[sub_category] ), [Total Profit], , DESC )
+
+Profit Color =
+IF ( [Total Profit] < 0, "#D03B3B", "#2A78D6" )
+-- Use in: Format > Bars/Columns > Colors > fx > Field value > Profit Color
+
+Share of Total Sales =
+DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( superstore ) ) )
+
+Discount Insight Text =
+VAR _loss = [Loss Lines %]
+RETURN "Loss-making order lines: " & FORMAT ( _loss, "0.0%" )
+      & "  |  Avg discount: " & FORMAT ( [Avg Discount %], "0.0%" )
+-- Use in a Card or Smart Narrative style text box
